@@ -1,17 +1,33 @@
-from functions import *
+from functions2 import *
+import tarfile
 import json
-from numpy.random import choice
 
 file_name = 'aciimdb_v1.tar'
-namelist, _ = load_namelist(file_name)
-file_obj = tarfile.open(file_name, 'r')
+file_obj = tarfile.open(file_name)
+namelist = list(file_obj.getnames())
 
-fulltext = combine_texts(file_obj, namelist)
+nwd = {}
 
-nwv = next_word_vectors(fulltext, 3)
+print('loaded')
+
+i = 0
+big_dict = {}
+for name in namelist:
+    file = file_obj.extractfile(name)
+    if file != None:
+        str1 = str(file.read())
+        review1 = new_text_pre(str1)
+        nwd1 = next_word_vectors(review1, 3)
+        big_dict[name] = nwd1
+    if i%1000 == 0:
+        print(i)
+    i += 1
+
+print('dictionary')
+
 file_obj.close()
 
-json = json.dumps(nwv)
-f = open('next-word-vecs.json', 'w')
+json = json.dumps(big_dict)
+f = open('next-word-vecs-2.json', 'w')
 f.write(json)
 f.close()
