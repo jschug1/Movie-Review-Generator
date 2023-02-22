@@ -1,3 +1,4 @@
+Version 2:
 This is a set of 4 files which generate a movie review based on the imdb movie review data set.  This is a niave algorithm used to practice coding and data manipulation.
 The method consists of find all distinct k-word sequences, where k is some integer (The files data_gen.py and next_word_dict_gen.py use k = 3, but one can change k if one wishes),
 and keeping track of which words appear after each k-word sequence and how many times it appears.  This is 'next word dictionary'.  The file data_gen.py makes a json file,
@@ -6,3 +7,8 @@ Then next_word_dict_gen.py combines all the small dictionaries into one big next
 
 Then to make a movie review, start with a k-word sequence as a seed, then randomly choose the next word from the next word dictionary, move to the next 3 word sequence, and repeat until
 you want to stop.  The current method is after some number of sentences, but can be easily amended if desired.  Again this is quite a niave algorithm I'm using to practice coding.
+
+Version 3:
+Now there is a simple machine learning model implemented to generate text.  Not super sophisticated, just trying to get it working.  You can edit the number of files to take data from,
+the epochs, learning rate, and more.  The model is in model.py, and a few auxiliary functions were defined in functions2.py.  The implementation is in main.py
+with the code from version 2 commented out.

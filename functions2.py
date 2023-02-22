@@ -1,8 +1,41 @@
 from numpy.random import choice
+import tarfile
+import json
+import random
+
+import tensorflow as tf
+import numpy as np
+
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Bidirectional
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
 
 ########################################################################################
 # This file contains functions used to make the niave movie review generator.
 ########################################################################################
+
+########################################################################################
+# function combinetexts: combines the texts of the files in namelist into a string
+
+# Input: namelist = list of file names to combine texts
+
+# Output: full_text = combined text from all of the files in the namelist
+########################################################################################
+def combinetexts(namelist, file_obj):
+
+    full_text = ''
+
+    for name in namelist:
+        file = file_obj.extractfile(name)
+        if file == None:
+            continue
+        review = str(file.read()).lower()
+        review = preproc(review)
+        full_text = full_text + ' ' + review
+
+    return full_text
 
 ########################################################################################
 # function dict_text: returns list of distinct words from text as well as indexed dictionary
@@ -94,6 +127,21 @@ def normalize_vec(dict):
             (dict[word])[next_word] = float((dict[word])[next_word])/float(sum)
 
     return dict
+
+########################################################################################
+# function preproc: bare bones preprocessor for the machine learning model review generator
+
+# Input: text = string of text
+
+# Ouput: text = preprocessed text
+########################################################################################
+
+def preproc(text):
+    text = text[2:]
+    text += ' <END>'
+    for spaced in [',', '!', '?', '—', ':', "'", '"']:
+        text = text.replace(spaced, '')
+    return text
 
 ########################################################################################
 # function new_text_pre: basic pre-processing for the text to be usable by the other functions
@@ -229,3 +277,90 @@ def sentence_chain(next_word_dict, seed, sentence_num):
             i += 1
 
     return sentence
+
+########################################################################################
+# This is the function which generates the review from the machine learning model.
+
+# Input: seed_text = string which would start the review
+# Input: next_words = int which is the desired length of the review
+# Input: model = desired model used to generate text
+# Input: tokenizer = the tokenizer which indexes the words from the corpus
+
+# Output: review = the generated movie review
+########################################################################################
+
+def ml_movie_gen(seed_text, next_words, model, tokenizer, word_sequences):
+
+    max_seq_len = max([len(x) for x in word_sequences])
+    review = seed_text
+
+    for _ in range(next_words):
+        token_list = tokenizer.texts_to_sequences([review])[0]
+        token_list = pad_sequences([token_list], maxlen=max_seq_len-1, padding='pre')
+        probabilities = model.predict(token_list)
+        choice = np.random.choice([1,2,3])
+        predicted = np.argsort(probabilities)[0][-choice]
+        if predicted != 0:
+            output_word = tokenizer.index_word[predicted]
+            review += " " + output_word
+
+    return review
+
+########################################################################################
+# function ml_tokenizer: a function which initializes the tokenizer for the text generation.  Can be edited
+# to have all the options of tokenizer
+
+# Input: corpus = the body of text to tokenize in the form a list of lines, sentences, reviews, what have you
+
+# Output: tokenizer = the tokenizer
+########################################################################################
+
+def ml_tokenizer(corpus):
+
+    tokenizer = Tokenizer(filters='"#$%&*+,-/:;<=>?@[\\]^_`{|}~\t\n')
+    tokenizer.fit_on_texts(corpus)
+
+    return tokenizer
+
+########################################################################################
+# function word_seq: makes the word sequences from the subdivisions of the corpus
+
+# Input: corpus = text in the form a list of subdivisions, lines, reviews, what have you
+# Input: tokenizer = desired tokenizer
+
+# Output: word_sequences = list of word sequences from the corpus stored as indices from the tokenizer
+########################################################################################
+
+def word_seq(corpus, tokenizer):
+
+    word_sequences = []
+    for sentence in corpus:
+        token_list = tokenizer.texts_to_sequences([sentence])[0]
+        for i in range(1, len(token_list)):
+            n_gram_sequence = token_list[:i+1]
+            word_sequences.append(n_gram_sequence)
+
+    return word_sequences
+
+########################################################################################
+# function make_data: given the word_sequences list, generates the data and the labels
+
+# Input: word_sequences = list of padded word sequences from the corpus
+# Input: tokenizer = tokenizer, to find the total amount of words to make the labels
+
+# Output: data = np array of all the word sequences minus the last word
+# Output: labels = np array of all the labels, which is the last word from the sequences
+########################################################################################
+
+def make_data(word_sequences, tokenizer):
+
+    max_seq_len = max([len(x) for x in word_sequences])
+    total_words = len(tokenizer.word_index)+1
+
+    input_sequences = np.array(pad_sequences(word_sequences, maxlen=max_seq_len, padding='pre'))
+
+    data, pre_labels = input_sequences[:, :-1], input_sequences[:, -1]
+    labels = tf.keras.utils.to_categorical(pre_labels, num_classes=total_words)
+
+    return data, labels
+
